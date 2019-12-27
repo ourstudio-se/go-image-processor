@@ -1,4 +1,4 @@
-FROM golang:1.12-alpine as build-env
+FROM golang:1.13-alpine as build-env
 
 RUN apk add --no-cache \
 	ca-certificates \
@@ -9,7 +9,7 @@ RUN apk add --no-cache \
 WORKDIR /go/src/app
 COPY . .
 
-RUN go get -d
+RUN go mod download
 RUN go build -o $GOBIN/go-image-processor-api
 
 FROM alpine

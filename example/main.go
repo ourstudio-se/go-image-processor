@@ -1,31 +1,36 @@
 package main
 
 import (
-	"github.com/ourstudio-se/go-image-processor"
-	"github.com/ourstudio-se/go-image-processor/abstractions"
-	"github.com/ourstudio-se/go-image-processor/readers"
-	"github.com/ourstudio-se/go-image-processor/restful"
+	"fmt"
+	"log"
+	"net/http"
 
-	"go.uber.org/dig"
+	httpimproc "github.com/ourstudio-se/go-image-processor/http"
 )
 
+type httpapi struct {
+	conv *httpimproc.HTTPImageConverter
+}
+
+func (ha *httpapi) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	b, err := ha.conv.Read(r)
+	if err != nil {
+		w.WriteHeader(400)
+		return
+	}
+
+	w.Header().Set("Content-Length", fmt.Sprintf("%d", len(b)))
+	w.Header().Set("Content-Disposition", "inline")
+	w.WriteHeader(http.StatusOK)
+	w.Write(b)
+}
+
 func main() {
-	container := dig.New()
-	container.Provide(improc.NewImageConverter)
+	conv := httpimproc.NewHTTPImageConverter()
+	api := &httpapi{
+		conv,
+	}
 
-	container.Provide(readers.NewURLReaderOptions)
-	container.Provide(readers.NewURLReaderFactory)
-
-	container.Provide(func() *restful.APIOptions {
-		return restful.NewAPIOptions("/convert")
-	})
-	container.Provide(restful.NewAPI)
-
-	container.Invoke(func(api *restful.API) error {
-		return api.Start()
-	})
-
-	container.Invoke(func(converter abstractions.Converter) {
-		converter.Destroy()
-	})
+	http.Handle("/convert", api)
+	log.Fatal(http.ListenAndServe(":8080", nil))
 }

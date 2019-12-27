@@ -3,24 +3,44 @@ package improc
 import (
 	"math"
 
-	"github.com/ourstudio-se/go-image-processor/abstractions"
-
 	"gopkg.in/gographics/imagick.v3/imagick"
 )
 
-type imageConverter struct {
-	wand *imagick.MagickWand
+type imagickWand interface {
+	GetImageBlob() []byte
+	ReadImageBlob([]byte) error
+	GetImageWidth() uint
+	GetImageHeight() uint
+	CropImage(uint, uint, int, int) error
+	ExtentImage(uint, uint, int, int) error
+	ResizeImage(uint, uint, imagick.FilterType) error
+	ResetIterator()
+	SetFormat(string) error
+	SetImageAlphaChannel(imagick.AlphaChannelType) error
+	SetImageBackgroundColor(*imagick.PixelWand) error
+	SetImageCompressionQuality(uint) error
+	SetIteratorIndex(int) bool
+	StripImage() error
+	Destroy()
+}
+
+// ImageConverter handles output specifications and
+// processes images to match the desired specification
+type ImageConverter struct {
+	wand imagickWand
 }
 
 // NewImageConverter creates a new converter
 // which uses Imagick C bindings library
-func NewImageConverter() abstractions.Converter {
+func NewImageConverter() *ImageConverter {
 	imagick.Initialize()
 
-	return &imageConverter{}
+	return &ImageConverter{}
 }
 
-func (c *imageConverter) Apply(blob []byte, spec *abstractions.OutputSpec) ([]byte, error) {
+// Apply takes an aoutput specification and processes
+// the incoming image blob accordingly
+func (c *ImageConverter) Apply(blob []byte, spec *OutputSpec) ([]byte, error) {
 	c.wand = imagick.NewMagickWand()
 	defer c.wand.Destroy()
 
@@ -43,7 +63,7 @@ func (c *imageConverter) Apply(blob []byte, spec *abstractions.OutputSpec) ([]by
 	return bytes, nil
 }
 
-func (c *imageConverter) fromBlob(blob []byte) error {
+func (c *ImageConverter) fromBlob(blob []byte) error {
 	err := c.wand.ReadImageBlob(blob)
 	if err != nil {
 		return err
@@ -54,7 +74,7 @@ func (c *imageConverter) fromBlob(blob []byte) error {
 	return nil
 }
 
-func (c *imageConverter) applyFormat(spec *abstractions.OutputSpec) error {
+func (c *ImageConverter) applyFormat(spec *OutputSpec) error {
 	var err error
 
 	inputWidth := float64(c.wand.GetImageWidth())
@@ -91,7 +111,7 @@ func (c *imageConverter) applyFormat(spec *abstractions.OutputSpec) error {
 	return nil
 }
 
-func (c *imageConverter) applyFormatWithoutCrop(inputWidth, inputHeight float64, spec *abstractions.OutputSpec) error {
+func (c *ImageConverter) applyFormatWithoutCrop(inputWidth, inputHeight float64, spec *OutputSpec) error {
 	var err error
 
 	isWiderThanHigher := (spec.Width / inputWidth) >= (spec.Height / inputHeight)
@@ -103,7 +123,7 @@ func (c *imageConverter) applyFormatWithoutCrop(inputWidth, inputHeight float64,
 			return err
 		}
 
-		anchor := GetHorizontalAnchorValue(spec.Anchor, spec.Width, nextWidth)
+		anchor := spec.Anchor.GetHorizontalAnchorValue(spec.Width, nextWidth)
 		if err = c.wand.ExtentImage(uint(spec.Width), uint(spec.Height), anchor, 0); err != nil {
 			return err
 		}
@@ -113,7 +133,7 @@ func (c *imageConverter) applyFormatWithoutCrop(inputWidth, inputHeight float64,
 			return err
 		}
 
-		anchor := GetVerticalAnchorValue(spec.Anchor, spec.Height, nextHeight)
+		anchor := spec.Anchor.GetVerticalAnchorValue(spec.Height, nextHeight)
 		if err = c.wand.ExtentImage(uint(spec.Width), uint(spec.Height), 0, anchor); err != nil {
 			return err
 		}
@@ -122,7 +142,7 @@ func (c *imageConverter) applyFormatWithoutCrop(inputWidth, inputHeight float64,
 	return nil
 }
 
-func (c *imageConverter) applyFormatWithCrop(inputWidth, inputHeight float64, spec *abstractions.OutputSpec) error {
+func (c *ImageConverter) applyFormatWithCrop(inputWidth, inputHeight float64, spec *OutputSpec) error {
 	var err error
 
 	isWiderThanHigher := (spec.Width / inputWidth) >= (spec.Height / inputHeight)
@@ -134,7 +154,7 @@ func (c *imageConverter) applyFormatWithCrop(inputWidth, inputHeight float64, sp
 			return err
 		}
 
-		anchor := GetHorizontalAnchorValue(spec.Anchor, spec.Width, nextWidth)
+		anchor := spec.Anchor.GetHorizontalAnchorValue(spec.Width, nextWidth)
 		if err = c.wand.CropImage(uint(spec.Width), uint(spec.Height), anchor, 0); err != nil {
 			return err
 		}
@@ -144,7 +164,7 @@ func (c *imageConverter) applyFormatWithCrop(inputWidth, inputHeight float64, sp
 			return err
 		}
 
-		anchor := GetVerticalAnchorValue(spec.Anchor, spec.Height, nextHeight)
+		anchor := spec.Anchor.GetVerticalAnchorValue(spec.Height, nextHeight)
 		if err = c.wand.CropImage(uint(spec.Width), uint(spec.Height), 0, anchor); err != nil {
 			return err
 		}
@@ -153,15 +173,15 @@ func (c *imageConverter) applyFormatWithCrop(inputWidth, inputHeight float64, sp
 	return nil
 }
 
-func (c *imageConverter) applyBackground(color abstractions.Color, compression abstractions.Compression) {
-	if compression == abstractions.Jpeg {
+func (c *ImageConverter) applyBackground(color Color, compression Compression) {
+	if compression == Jpeg {
 		c.wand.SetImageAlphaChannel(imagick.ALPHA_CHANNEL_REMOVE)
 
-		if color == abstractions.ColorTransparent {
-			color = abstractions.Color("#FFFFFF")
+		if color == ColorTransparent {
+			color = Color("#FFFFFF")
 		}
 	}
-	if compression != abstractions.Jpeg && compression != abstractions.TransientCompression {
+	if compression != Jpeg && compression != TransitiveCompression {
 		c.wand.SetImageAlphaChannel(imagick.ALPHA_CHANNEL_TRANSPARENT)
 	}
 
@@ -172,42 +192,10 @@ func (c *imageConverter) applyBackground(color abstractions.Color, compression a
 	c.wand.SetImageBackgroundColor(bg)
 }
 
-// GetHorizontalAnchorValue calculates where the anchor point should be relative to the
-// current width (c) and the next/specified width (n) of the image
-func GetHorizontalAnchorValue(a *abstractions.Anchor, c, n float64) int {
-	if a.Horizontal == abstractions.GravityPull {
-		// We "pull" the anchor to the left of the canvas
-		return 0
-	}
-	if a.Horizontal == abstractions.GravityPush {
-		// We "push" the anchor to the right of the canvas
-		return int(-(c - n))
-	}
-
-	// Default gravity anchor point is the middle of the canvas
-	return int(-(c - n) / 2)
-}
-
-// GetVerticalAnchorValue calculates where the anchor point should be relative to the
-// current height (c) and the next/specified height (n) of the image
-func GetVerticalAnchorValue(a *abstractions.Anchor, c, n float64) int {
-	if a.Vertical == abstractions.GravityPull {
-		// We "pull" the anchor to the top of the canvas
-		return 0
-	}
-	if a.Vertical == abstractions.GravityPush {
-		// We "push" the anchor to the bottom of the canvas
-		return int(-(c - n))
-	}
-
-	// Default gravity anchor point is the middle of the canvas
-	return int(-(c - n) / 2)
-}
-
-func (c *imageConverter) bytes(quality uint, compression abstractions.Compression) []byte {
+func (c *ImageConverter) bytes(quality uint, compression Compression) []byte {
 	c.wand.SetImageCompressionQuality(quality)
 
-	if compression != abstractions.TransientCompression && compression.String() != "" {
+	if compression != TransitiveCompression && compression.String() != "" {
 		c.wand.SetFormat(compression.String())
 	}
 
@@ -215,10 +203,11 @@ func (c *imageConverter) bytes(quality uint, compression abstractions.Compressio
 	return c.wand.GetImageBlob()
 }
 
-func (c *imageConverter) strip() {
+func (c *ImageConverter) strip() {
 	c.wand.StripImage()
 }
 
-func (c *imageConverter) Destroy() {
+// Destroy terminates the ImageMagick session
+func (c *ImageConverter) Destroy() {
 	imagick.Terminate()
 }

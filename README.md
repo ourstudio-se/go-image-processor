@@ -16,47 +16,85 @@ We often end up in projects where we have raw, or very high resolution, images t
 
 `go-image-processor` is only a library, but is very easy to implement - and contains all bits and bolts to create a runnable application in just a few lines of code.
 
-The following example starts a webserver on port 8080, exposing a single endpoint (http://localhost:8080/convert) for image conversion. In the [example directory](https://github.com/ourstudio-se/go-image-processor/tree/master/example) there's a fully runnable, Dockerized, application.
+The following example takes an image file and resizes it to an output specification, specified as a string template.
 
 ```go
 package main
 
 import (
 	"github.com/ourstudio-se/go-image-processor"
-	"github.com/ourstudio-se/go-image-processor/abstractions"
-	"github.com/ourstudio-se/go-image-processor/readers"
-	"github.com/ourstudio-se/go-image-processor/restful"
-
-	"go.uber.org/dig"
 )
 
 func main() {
-	container := dig.New()
-	container.Provide(improc.NewImageConverter)
+	converter := improc.NewImageConverter()
+	defer converter.Destroy()
 
-	container.Provide(readers.NewURLReaderOptions)
-	container.Provide(readers.NewURLReaderFactory)
+	b, err := ioutil.ReadFile("image.png")
+	if err != nil {
+		panic(err)
+	}
 
-	container.Provide(func () *restful.APIOptions {
-		return restful.NewAPIOptions("/convert")
-	})
-	container.Provide(restful.NewAPI)
+	spec, err := improc.ParseOutputSpec("200x200")
+	if err != nil {
+		panic(err)
+	}
 
-	// API.Start() is blocking
-	container.Invoke(func(api *restful.API) error {
-		return api.Start()
-	})
+	output, err := converter.Apply(b, spec)
+	if err != nil {
+		panic(err)
+	}
 
-	// Clean up if the API server is closed
-	container.Invoke(func(converter abstractions.Converter) {
-		converter.Destroy()
-	})
+	err := ioutil.WriteFile("image-200x200.png", output, 0644)
+	if err != nil {
+		panic(err)
+	}
 }
 ```
 
-## Restful query API
+## HTTP request handler
 
-The restful API requires at least one dimenson (width or height) and a source URL to convert an image.
+The library includes HTTP functionality, which takes a `*http.Request` and reads querystring values to determine what actions to take. It can resize, crop, and rewrite images on the fly.
+
+```go
+package main
+
+import (
+	"fmt"
+	"log"
+	"net/http"
+
+	httpimproc "github.com/ourstudio-se/go-image-processor/http"
+)
+
+type httpapi struct {
+	conv *httpimproc.HTTPImageConverter
+}
+
+func (ha *httpapi) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	b, err := ha.conv.Read(r)
+	if err != nil {
+		w.WriteHeader(400)
+		return
+	}
+
+	w.Header().Set("Content-Length", fmt.Sprintf("%d", len(b)))
+	w.Header().Set("Content-Disposition", "inline")
+	w.WriteHeader(http.StatusOK)
+	w.Write(b)
+}
+
+func main() {
+	conv := httpimproc.NewHTTPImageConverter()
+	api := &httpapi{
+		conv,
+	}
+
+	http.Handle("/convert", api)
+	log.Fatal(http.ListenAndServe(":8080", nil))
+}
+```
+
+The querystring parameters available are defined below.
 
 ### `url`
 

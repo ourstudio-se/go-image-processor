@@ -1,25 +1,24 @@
-package restful
+package httpimproc
 
 import (
 	"fmt"
-	"net/http"
 	"net/url"
 	"strconv"
 	"strings"
 
-	"github.com/ourstudio-se/go-image-processor/abstractions"
+	improc "github.com/ourstudio-se/go-image-processor"
 )
 
 // ProcessingRequest contains all necessary information to
 // process an image for resizing, cropping, etc
 type ProcessingRequest struct {
 	Source     *url.URL
-	OutputSpec *abstractions.OutputSpec
+	OutputSpec *improc.OutputSpec
 }
 
-// NewProcessingRequest translates a GET request to a `processingRequest`
-func NewProcessingRequest(r *http.Request) (*ProcessingRequest, error) {
-	query := r.URL.Query()
+// ParseURL translates a HTTP URL with querystring, to a `ProcessingRequest`
+func ParseURL(u *url.URL) (*ProcessingRequest, error) {
+	query := u.Query()
 	source, err := getImageSource(query)
 	if err != nil {
 		return nil, err
@@ -59,13 +58,13 @@ func getImageSource(values url.Values) (*url.URL, error) {
 		return source, nil
 	}
 
-	return nil, fmt.Errorf("only HTTP and HTTPS source URLs are supported")
+	return nil, fmt.Errorf("only HTTP/S source URLs are supported")
 }
 
-func getFormatSpec(values url.Values) (*abstractions.OutputSpec, error) {
+func getFormatSpec(values url.Values) (*improc.OutputSpec, error) {
 	spec := getParam(values, "spec")
 	if spec != "" {
-		return abstractions.ParseOutputSpec(spec)
+		return improc.ParseOutputSpec(spec)
 	}
 
 	width := getParam(values, "width")
@@ -81,44 +80,44 @@ func getFormatSpec(values url.Values) (*abstractions.OutputSpec, error) {
 	anchorY := getParam(values, "anchory")
 
 	if anchorX == "" && anchorY == "" {
-		return abstractions.ParseOutputSpec(template)
+		return improc.ParseOutputSpec(template)
 	}
 	if anchorX == "" || anchorY == "" {
-		return nil, fmt.Errorf("malformed anchor specifications")
+		return nil, fmt.Errorf("malformed anchor specification")
 	}
 
 	template = fmt.Sprintf("%s@%s,%s", template, anchorX, anchorY)
-	return abstractions.ParseOutputSpec(template)
+	return improc.ParseOutputSpec(template)
 }
 
-func getCompression(values url.Values) abstractions.Compression {
+func getCompression(values url.Values) improc.Compression {
 	if outFormat := getParam(values, "out"); outFormat != "" {
 		switch strings.ToLower(outFormat) {
 		case "jpg", "jpeg":
-			return abstractions.Jpeg
+			return improc.Jpeg
 		case "png":
-			return abstractions.Png
+			return improc.Png
 		case "webp":
-			return abstractions.WebP
+			return improc.WebP
 		}
 	}
 
-	return abstractions.TransientCompression
+	return improc.TransitiveCompression
 }
 
-func getBackgroundColor(values url.Values, compression abstractions.Compression) abstractions.Color {
+func getBackgroundColor(values url.Values, compression improc.Compression) improc.Color {
 	if color := getParam(values, "background"); color != "" {
 		_, err := strconv.ParseUint(color, 16, 64)
-		if err != nil {
-			return abstractions.Color(fmt.Sprintf("#%s", color))
+		if err == nil {
+			return improc.Color(fmt.Sprintf("#%s", color))
 		}
 	}
 
-	if compression == abstractions.Jpeg {
-		return abstractions.Color("#FFFFFF")
+	if compression == improc.Jpeg {
+		return improc.Color("#FFFFFF")
 	}
 
-	return abstractions.ColorTransparent
+	return improc.ColorTransparent
 }
 
 func getParam(values url.Values, name string) string {

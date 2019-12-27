@@ -1,4 +1,4 @@
-package abstractions
+package improc
 
 import (
 	"fmt"
@@ -35,9 +35,9 @@ const (
 	// WebP image compression
 	WebP
 
-	// TransientCompression is using the
+	// TransitiveCompression is using the
 	// same compression algorithm as input source
-	TransientCompression
+	TransitiveCompression
 )
 
 func (c Compression) String() string {
@@ -61,6 +61,38 @@ func (c Color) String() string {
 type Anchor struct {
 	Horizontal Gravity
 	Vertical   Gravity
+}
+
+// GetHorizontalAnchorValue calculates where the anchor point should be relative to the
+// current width (c) and the next/specified width (n) of the image
+func (a *Anchor) GetHorizontalAnchorValue(c, n float64) int {
+	if a.Horizontal == GravityPull {
+		// We "pull" the anchor to the left of the canvas
+		return 0
+	}
+	if a.Horizontal == GravityPush {
+		// We "push" the anchor to the right of the canvas
+		return int(-(c - n))
+	}
+
+	// Default gravity anchor point is the middle of the canvas
+	return int(-(c - n) / 2)
+}
+
+// GetVerticalAnchorValue calculates where the anchor point should be relative to the
+// current height (c) and the next/specified height (n) of the image
+func (a *Anchor) GetVerticalAnchorValue(c, n float64) int {
+	if a.Vertical == GravityPull {
+		// We "pull" the anchor to the top of the canvas
+		return 0
+	}
+	if a.Vertical == GravityPush {
+		// We "push" the anchor to the bottom of the canvas
+		return int(-(c - n))
+	}
+
+	// Default gravity anchor point is the middle of the canvas
+	return int(-(c - n) / 2)
 }
 
 // OutputSpec is the specification used
