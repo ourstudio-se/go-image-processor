@@ -16,47 +16,85 @@ We often end up in projects where we have raw, or very high resolution, images t
 
 `go-image-processor` is only a library, but is very easy to implement - and contains all bits and bolts to create a runnable application in just a few lines of code.
 
-The following example starts a webserver on port 8080, exposing a single endpoint (http://localhost:8080/convert) for image conversion. In the [example directory](https://github.com/ourstudio-se/go-image-processor/tree/master/example) there's a fully runnable, Dockerized, application.
+The following example takes an image file and resizes it to an output specification, specified as a string template.
 
 ```go
 package main
 
 import (
 	"github.com/ourstudio-se/go-image-processor"
-	"github.com/ourstudio-se/go-image-processor/abstractions"
-	"github.com/ourstudio-se/go-image-processor/readers"
-	"github.com/ourstudio-se/go-image-processor/restful"
-
-	"go.uber.org/dig"
 )
 
 func main() {
-	container := dig.New()
-	container.Provide(improc.NewImageConverter)
+	converter := improc.NewImageConverter()
+	defer converter.Destroy()
 
-	container.Provide(readers.NewURLReaderOptions)
-	container.Provide(readers.NewURLReaderFactory)
+	b, err := ioutil.ReadFile("image.png")
+	if err != nil {
+		panic(err)
+	}
 
-	container.Provide(func () *restful.APIOptions {
-		return restful.NewAPIOptions("/convert")
-	})
-	container.Provide(restful.NewAPI)
+	spec, err := improc.ParseOutputSpec("200x200")
+	if err != nil {
+		panic(err)
+	}
 
-	// API.Start() is blocking
-	container.Invoke(func(api *restful.API) error {
-		return api.Start()
-	})
+	output, err := converter.Apply(b, spec)
+	if err != nil {
+		panic(err)
+	}
 
-	// Clean up if the API server is closed
-	container.Invoke(func(converter abstractions.Converter) {
-		converter.Destroy()
-	})
+	err := ioutil.WriteFile("image-200x200.png", output, 0644)
+	if err != nil {
+		panic(err)
+	}
 }
 ```
 
-## Restful query API
+## HTTP request handler
 
-The restful API requires at least one dimenson (width or height) and a source URL to convert an image.
+The library includes HTTP functionality, which takes a `*http.Request` and reads querystring values to determine what actions to take. It can resize, crop, and rewrite images on the fly.
+
+```go
+package main
+
+import (
+	"fmt"
+	"log"
+	"net/http"
+
+	httpimproc "github.com/ourstudio-se/go-image-processor/http"
+)
+
+type httpapi struct {
+	conv *httpimproc.HTTPImageConverter
+}
+
+func (ha *httpapi) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	b, err := ha.conv.Read(r)
+	if err != nil {
+		w.WriteHeader(400)
+		return
+	}
+
+	w.Header().Set("Content-Length", fmt.Sprintf("%d", len(b)))
+	w.Header().Set("Content-Disposition", "inline")
+	w.WriteHeader(http.StatusOK)
+	w.Write(b)
+}
+
+func main() {
+	conv := httpimproc.NewHTTPImageConverter()
+	api := &httpapi{
+		conv,
+	}
+
+	http.Handle("/convert", api)
+	log.Fatal(http.ListenAndServe(":8080", nil))
+}
+```
+
+The querystring parameters available are defined below.
 
 ### `url`
 
@@ -107,6 +145,40 @@ Specifies output quality, with a value between 0 and 100. Defaults to 85.
 ### `background`
 
 Apply a background color for images where the canvas is visible (e.g. after a non cropped resize). Input values should be in hex format, such as `FF00BB`. Defaults to white for JPEG outputs and defaults to transparent for PNG/WebP.
+
+### `text:value`
+
+A text block to be applied to the output image. Only applicable when `text:font` and `text:size` are set as well.
+
+### `text:font`
+
+A font for a text block to be applied to the output image. Only applicable when `text:value` and `text:size` are set as well.
+
+### `text:size`
+
+A font size for a text block to be applied to the output image. Only applicable when `text:value` and `text:font` are set as well.
+
+### `text:foreground`
+
+Specifies a font color for a text block. Values should be in hex format, such as `000000`. Defaults to black.
+
+### `text:background`
+
+Specifies a background color for a text block. Values should be in hex format, such as `FFFFFF`. Defaults to transparent.
+
+### `text:anchor`
+
+Specifies an anchor point for a text block. Valid values are:
+
+- `0,0`: Center/Center
+- `-1,-1`: Upper/Left
+- `-1,1`: Upper/Right
+- `1,-1`: Lower/Left
+- `1,1`: Lower/Right
+- `0,-1`: Center/Left
+- `0,1`: Center/Right
+- `-1,0`: Upper/Center
+- `1,0`: Lower/Center
 
 ## License
 
