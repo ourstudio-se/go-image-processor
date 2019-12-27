@@ -1,4 +1,4 @@
-package abstractions
+package improc
 
 import (
 	"fmt"
@@ -35,9 +35,9 @@ const (
 	// WebP image compression
 	WebP
 
-	// TransientCompression is using the
+	// TransitiveCompression is using the
 	// same compression algorithm as input source
-	TransientCompression
+	TransitiveCompression
 )
 
 func (c Compression) String() string {
@@ -63,6 +63,43 @@ type Anchor struct {
 	Vertical   Gravity
 }
 
+// GetHorizontalAnchorValue calculates where the anchor point should be relative to the
+// current width (c) and the next/specified width (n) of the image
+func (a *Anchor) GetHorizontalAnchorValue(c, n float64) int {
+	return getAnchorValue(a.Horizontal, c, n)
+}
+
+// GetVerticalAnchorValue calculates where the anchor point should be relative to the
+// current height (c) and the next/specified height (n) of the image
+func (a *Anchor) GetVerticalAnchorValue(c, n float64) int {
+	return getAnchorValue(a.Vertical, c, n)
+}
+
+func getAnchorValue(g Gravity, c, n float64) int {
+	if g == GravityPull {
+		// We "pull" the anchor to the top/left of the canvas
+		return 0
+	}
+	if g == GravityPush {
+		// We "push" the anchor to the bottom/right of the canvas
+		return int(-(c - n))
+	}
+
+	// Default gravity anchor point is the middle/center of the canvas
+	return int(-(c - n) / 2)
+}
+
+// TextBlock defines a block of text to be applied
+// to an image
+type TextBlock struct {
+	Text       string
+	FontName   string
+	FontSize   float64
+	Foreground Color
+	Background Color
+	Anchor     *Anchor
+}
+
 // OutputSpec is the specification used
 // when resizing and/or cropping an image
 type OutputSpec struct {
@@ -73,6 +110,7 @@ type OutputSpec struct {
 	Background  Color
 	Quality     uint
 	Compression Compression
+	Text        *TextBlock
 }
 
 // ParseOutputSpec takes a string and returns a valid
@@ -91,7 +129,7 @@ func ParseOutputSpec(raw string) (*OutputSpec, error) {
 	}
 
 	if len(parts) > 1 {
-		anchor = parseAnchorSpec(parts[1])
+		anchor = ParseAnchorSpec(parts[1])
 	}
 
 	parts = strings.Split(parts[0], "x")
@@ -124,7 +162,9 @@ func ParseOutputSpec(raw string) (*OutputSpec, error) {
 	}, nil
 }
 
-func parseAnchorSpec(raw string) *Anchor {
+// ParseAnchorSpec returns horizontal and vertical anchoring from
+// a string template, where values are separated with a comma.
+func ParseAnchorSpec(raw string) *Anchor {
 	parts := strings.Split(raw, ",")
 	if len(parts) != 2 {
 		return &Anchor{
