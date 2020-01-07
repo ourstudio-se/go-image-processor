@@ -6,7 +6,7 @@ import (
 	"strconv"
 	"strings"
 
-	improc "github.com/ourstudio-se/go-image-processor"
+	improc "github.com/ourstudio-se/go-image-processor/v2"
 )
 
 // ProcessingRequest contains all necessary information to

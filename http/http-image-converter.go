@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"net/http"
 
-	improc "github.com/ourstudio-se/go-image-processor"
+	improc "github.com/ourstudio-se/go-image-processor/v2"
 )
 
 // HTTPImageConverter wraps ImageConverter and handles

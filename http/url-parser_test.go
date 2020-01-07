@@ -5,7 +5,7 @@ import (
 	"net/url"
 	"testing"
 
-	improc "github.com/ourstudio-se/go-image-processor"
+	improc "github.com/ourstudio-se/go-image-processor/v2"
 
 	"github.com/stretchr/testify/assert"
 )
