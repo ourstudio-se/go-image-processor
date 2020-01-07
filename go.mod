@@ -1,4 +1,4 @@
-module github.com/ourstudio-se/go-image-processor
+module github.com/ourstudio-se/go-image-processor/v2
 
 go 1.13
 
