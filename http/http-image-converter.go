@@ -90,7 +90,7 @@ func (hic *HTTPImageConverter) Read(r *http.Request) ([]byte, error) {
 
 	hic.Converter.Tracer("go-image-processor-http: reading requested URL")
 
-	reader := NewURLReader(preq.Source, pmap)
+	reader := NewURLReader(preq.Source)
 	b, err := reader.ReadBlob()
 	if err != nil {
 		hic.Converter.Tracer("go-image-processor-http: failed reading requested URL!")
