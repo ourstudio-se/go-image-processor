@@ -17,27 +17,27 @@ type ProcessingRequest struct {
 }
 
 // ParseURL translates a HTTP URL with querystring, to a `ProcessingRequest`
-func ParseURL(u *url.URL) (*ProcessingRequest, error) {
+func ParseURL(u *url.URL, parameters *ParameterMap) (*ProcessingRequest, error) {
 	query := u.Query()
-	source, err := getImageSource(query)
+	source, err := getImageSource(query, parameters.SourceURL)
 	if err != nil {
 		return nil, err
 	}
 
-	formatSpec, err := getFormatSpec(query)
+	formatSpec, err := getFormatSpec(query, parameters)
 	if err != nil {
 		return nil, err
 	}
 
-	if getParam(query, "crop") == "true" {
+	if getParam(query, parameters.Crop) == "true" {
 		formatSpec.Crop = true
 	}
-	if q, err := strconv.Atoi(getParam(query, "quality")); err == nil && q > 0 && q <= 100 {
+	if q, err := strconv.Atoi(getParam(query, parameters.Quality)); err == nil && q > 0 && q <= 100 {
 		formatSpec.Quality = uint(q)
 	}
-	formatSpec.Compression = getCompression(query)
-	formatSpec.Background = getBackgroundColor(query, formatSpec.Compression)
-	formatSpec.Text = getTextBlock(query)
+	formatSpec.Compression = getCompression(query, parameters.Compression)
+	formatSpec.Background = getBackgroundColor(query, formatSpec.Compression, parameters.Background)
+	formatSpec.Text = getTextBlock(query, parameters)
 
 	return &ProcessingRequest{
 		Source:     source,
@@ -45,8 +45,8 @@ func ParseURL(u *url.URL) (*ProcessingRequest, error) {
 	}, nil
 }
 
-func getImageSource(values url.Values) (*url.URL, error) {
-	source, err := url.Parse(getParam(values, "url"))
+func getImageSource(values url.Values, param string) (*url.URL, error) {
+	source, err := url.Parse(getParam(values, param))
 	if err != nil {
 		return nil, err
 	}
@@ -62,14 +62,14 @@ func getImageSource(values url.Values) (*url.URL, error) {
 	return nil, fmt.Errorf("only HTTP/S source URLs are supported")
 }
 
-func getFormatSpec(values url.Values) (*improc.OutputSpec, error) {
-	spec := getParam(values, "spec")
+func getFormatSpec(values url.Values, parameters *ParameterMap) (*improc.OutputSpec, error) {
+	spec := getParam(values, parameters.Spec)
 	if spec != "" {
 		return improc.ParseOutputSpec(spec)
 	}
 
-	width := getParam(values, "width")
-	height := getParam(values, "height")
+	width := getParam(values, parameters.Width)
+	height := getParam(values, parameters.Height)
 
 	if width == "" && height == "" {
 		return nil, fmt.Errorf("missing output dimensions")
@@ -77,8 +77,8 @@ func getFormatSpec(values url.Values) (*improc.OutputSpec, error) {
 
 	template := fmt.Sprintf("%sx%s", width, height)
 
-	anchorX := getParam(values, "anchorx")
-	anchorY := getParam(values, "anchory")
+	anchorX := getParam(values, parameters.AnchorX)
+	anchorY := getParam(values, parameters.AnchorY)
 
 	if anchorX == "" && anchorY == "" {
 		return improc.ParseOutputSpec(template)
@@ -91,8 +91,8 @@ func getFormatSpec(values url.Values) (*improc.OutputSpec, error) {
 	return improc.ParseOutputSpec(template)
 }
 
-func getCompression(values url.Values) improc.Compression {
-	if outFormat := getParam(values, "out"); outFormat != "" {
+func getCompression(values url.Values, param string) improc.Compression {
+	if outFormat := getParam(values, param); outFormat != "" {
 		switch strings.ToLower(outFormat) {
 		case "jpg", "jpeg":
 			return improc.Jpeg
@@ -106,7 +106,7 @@ func getCompression(values url.Values) improc.Compression {
 	return improc.TransitiveCompression
 }
 
-func getTextBlock(values url.Values) *improc.TextBlock {
+func getTextBlock(values url.Values, parameters *ParameterMap) *improc.TextBlock {
 	tb := &improc.TextBlock{
 		Foreground: improc.Color("#000000"),
 		Background: improc.Color("none"),
@@ -116,19 +116,19 @@ func getTextBlock(values url.Values) *improc.TextBlock {
 		},
 	}
 
-	if text := getParam(values, "text:value"); text != "" {
+	if text := getParam(values, parameters.TextValue); text != "" {
 		tb.Text = text
 	} else {
 		return nil
 	}
 
-	if font := getParam(values, "text:font"); font != "" {
+	if font := getParam(values, parameters.TextFont); font != "" {
 		tb.FontName = font
 	} else {
 		return nil
 	}
 
-	if size := getParam(values, "text:size"); size != "" {
+	if size := getParam(values, parameters.TextSize); size != "" {
 		fontSize, err := strconv.ParseFloat(size, 64)
 		if err == nil && fontSize > 0 {
 			tb.FontSize = fontSize
@@ -139,29 +139,29 @@ func getTextBlock(values url.Values) *improc.TextBlock {
 		return nil
 	}
 
-	if fg := getParam(values, "text:foreground"); fg != "" {
+	if fg := getParam(values, parameters.TextForeground); fg != "" {
 		fgColor, err := getColor(fg)
 		if err == nil {
 			tb.Foreground = fgColor
 		}
 	}
 
-	if bg := getParam(values, "text:background"); bg != "" {
+	if bg := getParam(values, parameters.TextBackground); bg != "" {
 		bgColor, err := getColor(bg)
 		if err == nil {
 			tb.Background = bgColor
 		}
 	}
 
-	if anchors := getParam(values, "text:anchor"); anchors != "" {
+	if anchors := getParam(values, parameters.TextAnchor); anchors != "" {
 		tb.Anchor = improc.ParseAnchorSpec(anchors)
 	}
 
 	return tb
 }
 
-func getBackgroundColor(values url.Values, compression improc.Compression) improc.Color {
-	if color := getParam(values, "background"); color != "" {
+func getBackgroundColor(values url.Values, compression improc.Compression, param string) improc.Color {
+	if color := getParam(values, param); color != "" {
 		c, err := getColor(color)
 		if err == nil {
 			return c

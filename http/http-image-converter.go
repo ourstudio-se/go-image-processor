@@ -7,10 +7,57 @@ import (
 	improc "github.com/ourstudio-se/go-image-processor/v2"
 )
 
+// ParameterMap is the definitions used
+// when parsing a request, to extract the
+// information needed to do image processing
+type ParameterMap struct {
+	SourceURL      string
+	Width          string
+	Height         string
+	Crop           string
+	Quality        string
+	Spec           string
+	AnchorX        string
+	AnchorY        string
+	Compression    string
+	TextValue      string
+	TextFont       string
+	TextSize       string
+	TextForeground string
+	TextBackground string
+	TextAnchor     string
+	Background     string
+}
+
+// DefaultParameterMap returns a ParameterMap with
+// the default querystring parameter names used
+// when parsing a request
+func DefaultParameterMap() *ParameterMap {
+	return &ParameterMap{
+		SourceURL:      "url",
+		Width:          "width",
+		Height:         "height",
+		Crop:           "crop",
+		Quality:        "quality",
+		Spec:           "spec",
+		AnchorX:        "anchorx",
+		AnchorY:        "anchory",
+		Compression:    "output",
+		TextValue:      "text:value",
+		TextFont:       "text:font",
+		TextSize:       "text:size",
+		TextForeground: "text:foreground",
+		TextBackground: "text:background",
+		TextAnchor:     "text:anchor",
+		Background:     "background",
+	}
+}
+
 // HTTPImageConverter wraps ImageConverter and handles
 // HTTP requests for applying formats to an image
 type HTTPImageConverter struct {
-	Converter *improc.ImageConverter
+	Converter    *improc.ImageConverter
+	ParemeterMap *ParameterMap
 }
 
 // NewHTTPImageConverter instantiates a new ImageConverter
@@ -18,7 +65,8 @@ type HTTPImageConverter struct {
 // images accordingly
 func NewHTTPImageConverter() *HTTPImageConverter {
 	return &HTTPImageConverter{
-		Converter: improc.NewImageConverter(),
+		Converter:    improc.NewImageConverter(),
+		ParemeterMap: DefaultParameterMap(),
 	}
 }
 
@@ -28,7 +76,13 @@ func NewHTTPImageConverter() *HTTPImageConverter {
 func (hic *HTTPImageConverter) Read(r *http.Request) ([]byte, error) {
 	hic.Converter.Tracer(fmt.Sprintf("go-image-processor-http: parsing URL %s", r.URL.String()))
 
-	preq, err := ParseURL(r.URL)
+	pmap := hic.ParemeterMap
+	if pmap == nil {
+		hic.Converter.Tracer("go-image-processor-http: no parameter map available, using default")
+		pmap = DefaultParameterMap()
+	}
+
+	preq, err := ParseURL(r.URL, pmap)
 	if err != nil {
 		hic.Converter.Tracer("go-image-processor-http: parsing URL failed!")
 		return nil, err
@@ -36,7 +90,7 @@ func (hic *HTTPImageConverter) Read(r *http.Request) ([]byte, error) {
 
 	hic.Converter.Tracer("go-image-processor-http: reading requested URL")
 
-	reader := NewURLReader(preq.Source)
+	reader := NewURLReader(preq.Source, pmap)
 	b, err := reader.ReadBlob()
 	if err != nil {
 		hic.Converter.Tracer("go-image-processor-http: failed reading requested URL!")
