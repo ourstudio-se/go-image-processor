@@ -276,7 +276,7 @@ func (c *ImageConverter) applyTextBlock(tb *TextBlock) error {
 	}
 
 	fm := mw.QueryFontMetrics(dw, "W")
-	dy := (fm.CharacterHeight * 1.5) + fm.Descender
+	dy := fm.CharacterHeight + fm.Descender
 
 	c.Tracer(fmt.Sprintf("go-image-processor: setting text block value to %s", tb.Text))
 	dw.Annotation(10, dy, tb.Text)
@@ -291,12 +291,14 @@ func (c *ImageConverter) applyTextBlock(tb *TextBlock) error {
 		return err
 	}
 
-	pad := int(tb.FontSize)
-	nextWidth := int(mw.GetImageWidth()) + pad
-	nextHeight := int(dy) - (int(dy) / 2) + pad
+	nextWidth := int(mw.GetImageWidth()) + int(tb.FontSize)
+	nextHeight := int(mw.GetImageHeight()) + int(dy*1.5)
+
+	anchorX := -(nextWidth - int(mw.GetImageWidth())) / 2
+	anchorY := -(nextHeight - int(mw.GetImageHeight())) / 2
 
 	c.Tracer(fmt.Sprintf("go-image-processor: setting text block size to %dx%d", nextWidth, nextHeight))
-	if err = mw.ExtentImage(uint(nextWidth), uint(nextHeight), -(nextWidth-int(mw.GetImageWidth()))/2, -(int(dy))/2); err != nil {
+	if err = mw.ExtentImage(uint(nextWidth), uint(nextHeight), anchorX, anchorY); err != nil {
 		return err
 	}
 
