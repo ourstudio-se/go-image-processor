@@ -293,7 +293,7 @@ func (c *ImageConverter) applyTextBlock(tb *TextBlock) error {
 
 	pad := int(tb.FontSize)
 	nextWidth := int(mw.GetImageWidth()) + pad
-	nextHeight := int(dy) + pad - (int(dy) / 2)
+	nextHeight := int(dy) - (int(dy) / 2) + int(pad+(pad/2))
 
 	c.Tracer(fmt.Sprintf("go-image-processor: setting text block size to %dx%d", nextWidth, nextHeight))
 	if err = mw.ExtentImage(uint(nextWidth), uint(nextHeight), -(nextWidth-int(mw.GetImageWidth()))/2, -(int(dy))/2); err != nil {
