@@ -276,7 +276,7 @@ func (c *ImageConverter) applyTextBlock(tb *TextBlock) error {
 	}
 
 	fm := mw.QueryFontMetrics(dw, "W")
-	dy := fm.CharacterHeight + fm.Descender
+	dy := fm.CharacterHeight
 
 	c.Tracer(fmt.Sprintf("go-image-processor: setting text block value to %s", tb.Text))
 	dw.Annotation(10, dy, tb.Text)
