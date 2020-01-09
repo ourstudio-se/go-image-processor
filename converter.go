@@ -276,7 +276,7 @@ func (c *ImageConverter) applyTextBlock(tb *TextBlock) error {
 	}
 
 	fm := mw.QueryFontMetrics(dw, "W")
-	dy := fm.CharacterHeight + (fm.Descender / 2)
+	dy := fm.CharacterHeight + fm.Descender
 
 	c.Tracer(fmt.Sprintf("go-image-processor: setting text block value to %s", tb.Text))
 	dw.Annotation(10, dy, tb.Text)
@@ -292,7 +292,7 @@ func (c *ImageConverter) applyTextBlock(tb *TextBlock) error {
 	}
 
 	nextWidth := int(mw.GetImageWidth()) + int(tb.FontSize)
-	nextHeight := int(mw.GetImageHeight()) + int(dy*1.5)
+	nextHeight := int(mw.GetImageHeight()) + int(dy)
 
 	anchorX := -(nextWidth - int(mw.GetImageWidth())) / 2
 	anchorY := -(nextHeight - int(mw.GetImageHeight())) / 2
