@@ -46,11 +46,11 @@ func (u *URLReader) ReadBlob() ([]byte, error) {
 		return nil, err
 	}
 
+	defer resp.Body.Close()
+
 	if resp.StatusCode != http.StatusOK {
 		return nil, fmt.Errorf("unsuccessful request for URL '%s'", u.sourceURL.String())
 	}
-
-	defer resp.Body.Close()
 
 	body, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
