@@ -1,7 +1,6 @@
 package httpimproc
 
 import (
-	"fmt"
 	"net/http"
 
 	improc "github.com/ourstudio-se/go-image-processor/v2"
@@ -74,37 +73,26 @@ func NewHTTPImageConverter() *HTTPImageConverter {
 // returns the raw image blob after the image has been
 // processed
 func (hic *HTTPImageConverter) Read(r *http.Request) ([]byte, error) {
-	hic.Converter.Tracer(fmt.Sprintf("go-image-processor-http: parsing URL %s", r.URL.String()))
-
 	pmap := hic.ParemeterMap
 	if pmap == nil {
-		hic.Converter.Tracer("go-image-processor-http: no parameter map available, using default")
 		pmap = DefaultParameterMap()
 	}
 
 	preq, err := ParseURL(r.URL, pmap)
 	if err != nil {
-		hic.Converter.Tracer("go-image-processor-http: parsing URL failed!")
 		return nil, err
 	}
-
-	hic.Converter.Tracer("go-image-processor-http: reading requested URL")
 
 	reader := NewURLReader(preq.Source)
 	b, err := reader.ReadBlob()
 	if err != nil {
-		hic.Converter.Tracer("go-image-processor-http: failed reading requested URL!")
 		return nil, err
 	}
-
-	hic.Converter.Tracer("go-image-processor-http: applying parsed output specification to source")
 
 	output, err := hic.Converter.Apply(b, preq.OutputSpec)
 	if err != nil {
-		hic.Converter.Tracer("go-image-processor-http: failed applying output specification!")
 		return nil, err
 	}
 
-	hic.Converter.Tracer("go-image-processor-http: returning processed byte blob")
 	return output, nil
 }
