@@ -2,6 +2,7 @@ package improc
 
 import (
 	"errors"
+	"os"
 	"sync"
 
 	"gopkg.in/gographics/imagick.v3/imagick"
@@ -10,6 +11,7 @@ import (
 type pool interface {
 	Take() (*imagick.MagickWand, error)
 	Put(*imagick.MagickWand) error
+	Close()
 }
 
 type wandPool struct {
@@ -17,19 +19,19 @@ type wandPool struct {
 	ch chan *imagick.MagickWand
 }
 
-func newWandPool(capacity uint) (*pool, error) {
+func newWandPool(capacity uint) (*wandPool, error) {
 	if capacity == 0 {
 		return nil, errors.New("pool capacity must be a positive number")
 	}
 
 	ch := make(chan *imagick.MagickWand, capacity)
 
-	for i = 0; i < capacity; i++ {
+	for i := 0; i < int(capacity); i++ {
 		ch <- imagick.NewMagickWand()
 	}
 
 	return &wandPool{
-		ch,
+		ch: ch,
 	}, nil
 }
 
@@ -38,13 +40,13 @@ func (p *wandPool) Take() (*imagick.MagickWand, error) {
 	defer p.RUnlock()
 
 	if p.ch == nil {
-		return nil, ErrClosed
+		return nil, os.ErrClosed
 	}
 
 	select {
 	case w := <-p.ch:
 		if w == nil {
-			return nil, ErrClosed
+			return nil, os.ErrClosed
 		}
 
 		return w, nil
@@ -56,8 +58,10 @@ func (p *wandPool) Put(w *imagick.MagickWand) error {
 		return errors.New("pool: rejecting put for null object")
 	}
 
-	p.RWLock()
-	defer p.RWUnlock()
+	w.Clear()
+
+	p.Lock()
+	defer p.Unlock()
 
 	if p.ch == nil {
 		return nil
@@ -73,8 +77,8 @@ func (p *wandPool) Close() {
 
 	for {
 		select {
-		case w <- p.ch:
-			w.Destroy()
+		case m := <-p.ch:
+			m.Destroy()
 		default:
 			return
 		}

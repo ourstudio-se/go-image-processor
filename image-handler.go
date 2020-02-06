@@ -163,34 +163,15 @@ func (h *handler) applyBackground(color Color, compression Compression) {
 func (h *handler) applyTextBlock(tb *TextBlock) error {
 	var err error
 
-	cleanup := func(w *imagick.MagickWand) {
-		w.Clear()
-		h.pool.Put(w)
-	}
-
 	mw, err := h.pool.Take()
 	if err != nil {
 		return err
 	}
-	defer cleanup(mw)
+	defer h.pool.Put(mw)
 
-	dw, err := h.pool.Take()
-	if err != nil {
-		return err
-	}
-	defer cleanup(dw)
-
-	fg, err := h.pool.Take()
-	if err != nil {
-		return err
-	}
-	defer cleanup(fg)
-
-	bg, err := h.pool.Take()
-	if err != nil {
-		return err
-	}
-	cleanup(bg)
+	dw := imagick.NewDrawingWand()
+	fg := imagick.NewPixelWand()
+	bg := imagick.NewPixelWand()
 
 	fg.SetColor(tb.Foreground.String())
 	bg.SetColor(tb.Background.String())
@@ -271,6 +252,5 @@ func (h *handler) strip() {
 }
 
 func (h *handler) destroy() {
-	h.wand.Clear()
 	h.pool.Put(h.wand)
 }

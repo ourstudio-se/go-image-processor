@@ -26,7 +26,11 @@ import (
 )
 
 func main() {
-	converter := improc.NewImageConverter()
+	converter, err := improc.NewImageConverter()
+	if err != nil {
+		panic(err)
+	}
+	
 	defer converter.Destroy()
 
 	b, err := ioutil.ReadFile("image.png")
@@ -84,7 +88,11 @@ func (ha *httpapi) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 }
 
 func main() {
-	conv := httpimproc.NewHTTPImageConverter()
+	conv, err := httpimproc.NewHTTPImageConverter()
+	if err != nil {
+		panic(err)
+	}
+
 	api := &httpapi{
 		conv,
 	}

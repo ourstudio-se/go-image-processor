@@ -9,7 +9,11 @@ import (
 )
 
 func main() {
-	conv := httpimproc.NewHTTPImageConverter()
+	conv, err := httpimproc.NewHTTPImageConverter()
+	if err != nil {
+		panic(err)
+	}
+
 	api := &httpapi{
 		conv,
 	}
