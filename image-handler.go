@@ -1,19 +1,27 @@
 package improc
 
 import (
+	"fmt"
 	"math"
 
 	"gopkg.in/gographics/imagick.v3/imagick"
 )
 
 type handler struct {
+	pool pool
 	wand *imagick.MagickWand
 }
 
-func newHandler() *handler {
-	return &handler{
-		wand: imagick.NewMagickWand(),
+func newHandler(p pool) (*handler, error) {
+	w, err := p.Take()
+	if err != nil {
+		return nil, fmt.Errorf("could not acquire wand")
 	}
+
+	return &handler{
+		pool: p,
+		wand: w,
+	}, nil
 }
 
 func (h *handler) fromBlob(blob []byte) error {
@@ -155,15 +163,15 @@ func (h *handler) applyBackground(color Color, compression Compression) {
 func (h *handler) applyTextBlock(tb *TextBlock) error {
 	var err error
 
-	mw := imagick.NewMagickWand()
+	mw, err := h.pool.Take()
+	if err != nil {
+		return err
+	}
+	defer h.pool.Put(mw)
+
 	dw := imagick.NewDrawingWand()
 	fg := imagick.NewPixelWand()
 	bg := imagick.NewPixelWand()
-
-	defer mw.Destroy()
-	defer dw.Destroy()
-	defer fg.Destroy()
-	defer bg.Destroy()
 
 	fg.SetColor(tb.Foreground.String())
 	bg.SetColor(tb.Background.String())
@@ -244,5 +252,5 @@ func (h *handler) strip() {
 }
 
 func (h *handler) destroy() {
-	h.wand.Destroy()
+	h.pool.Put(h.wand)
 }

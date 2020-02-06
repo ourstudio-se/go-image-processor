@@ -1,28 +1,43 @@
 package improc
 
 import (
+	"fmt"
+
 	"gopkg.in/gographics/imagick.v3/imagick"
 )
 
 // ImageConverter handles output specifications and
 // processes images to match the desired specification
-type ImageConverter struct{}
+type ImageConverter struct {
+	pool pool
+}
 
 // NewImageConverter creates a new converter
 // which uses Imagick C bindings library
-func NewImageConverter() *ImageConverter {
+func NewImageConverter() (*ImageConverter, error) {
 	imagick.Initialize()
 
-	return &ImageConverter{}
+	pool, err := newWandPool(100)
+	if err != nil {
+		return nil, err
+	}
+
+	return &ImageConverter{
+		pool,
+	}, nil
 }
 
 // Apply takes an aoutput specification and processes
 // the incoming image blob accordingly
 func (c *ImageConverter) Apply(blob []byte, spec *OutputSpec) ([]byte, error) {
-	h := newHandler()
-	defer h.destroy()
-
 	var err error
+
+	h, err := newHandler(c.pool)
+	if err != nil {
+		return nil, fmt.Errorf("failed creating image handler: %v", err)
+	}
+
+	defer h.destroy()
 
 	err = h.fromBlob(blob)
 	if err != nil {
@@ -50,5 +65,6 @@ func (c *ImageConverter) Apply(blob []byte, spec *OutputSpec) ([]byte, error) {
 
 // Destroy terminates the ImageMagick session
 func (c *ImageConverter) Destroy() {
+	c.pool.Close()
 	imagick.Terminate()
 }

@@ -62,11 +62,16 @@ type HTTPImageConverter struct {
 // NewHTTPImageConverter instantiates a new ImageConverter
 // which is able to parse HTTP requests and process
 // images accordingly
-func NewHTTPImageConverter() *HTTPImageConverter {
-	return &HTTPImageConverter{
-		Converter:    improc.NewImageConverter(),
-		ParemeterMap: DefaultParameterMap(),
+func NewHTTPImageConverter() (*HTTPImageConverter, error) {
+	converter, err := improc.NewImageConverter()
+	if err != nil {
+		return nil, err
 	}
+
+	return &HTTPImageConverter{
+		Converter:    converter,
+		ParemeterMap: DefaultParameterMap(),
+	}, nil
 }
 
 // Read is the handler function for a HTTP request, and
