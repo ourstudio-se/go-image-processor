@@ -1,19 +1,27 @@
 package improc
 
 import (
+	"fmt"
 	"math"
 
 	"gopkg.in/gographics/imagick.v3/imagick"
 )
 
 type handler struct {
+	pool pool
 	wand *imagick.MagickWand
 }
 
-func newHandler() *handler {
-	return &handler{
-		wand: imagick.NewMagickWand(),
+func newHandler(p pool) (*handler, error) {
+	w, err := p.Take()
+	if err != nil {
+		return nil, fmt.Errorf("could not acquire wand")
 	}
+
+	return &handler{
+		pool: p,
+		wand: w,
+	}, nil
 }
 
 func (h *handler) fromBlob(blob []byte) error {
@@ -155,15 +163,34 @@ func (h *handler) applyBackground(color Color, compression Compression) {
 func (h *handler) applyTextBlock(tb *TextBlock) error {
 	var err error
 
-	mw := imagick.NewMagickWand()
-	dw := imagick.NewDrawingWand()
-	fg := imagick.NewPixelWand()
-	bg := imagick.NewPixelWand()
+	cleanup := func(w *imagick.MagickWand) {
+		w.Clear()
+		h.pool.Put(w)
+	}
 
-	defer mw.Destroy()
-	defer dw.Destroy()
-	defer fg.Destroy()
-	defer bg.Destroy()
+	mw, err := h.pool.Take()
+	if err != nil {
+		return err
+	}
+	defer cleanup(mw)
+
+	dw, err := h.pool.Take()
+	if err != nil {
+		return err
+	}
+	defer cleanup(dw)
+
+	fg, err := h.pool.Take()
+	if err != nil {
+		return err
+	}
+	defer cleanup(fg)
+
+	bg, err := h.pool.Take()
+	if err != nil {
+		return err
+	}
+	cleanup(bg)
 
 	fg.SetColor(tb.Foreground.String())
 	bg.SetColor(tb.Background.String())
@@ -244,5 +271,6 @@ func (h *handler) strip() {
 }
 
 func (h *handler) destroy() {
-	h.wand.Destroy()
+	h.wand.Clear()
+	h.pool.Put(h.wand)
 }
