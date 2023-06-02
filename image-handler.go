@@ -152,6 +152,27 @@ func (h *handler) applyBackground(color Color, compression Compression) {
 	h.wand.SetImageBackgroundColor(bg)
 }
 
+func (h *handler) addLayer(blob []byte) error {
+	var err error
+
+	mw := imagick.NewMagickWand()
+	defer mw.Destroy()
+
+	err = mw.ReadImageBlob(blob)
+	if err != nil {
+		return err
+	}
+
+	mw.SetIteratorIndex(0)
+
+	err = mw.ResizeImage(h.wand.GetImageWidth(), h.wand.GetImageHeight(), imagick.FILTER_LANCZOS2)
+	if err != nil {
+		return err
+	}
+
+	return h.wand.CompositeImage(mw, imagick.COMPOSITE_OP_OVER, true, 0, 0)
+}
+
 func (h *handler) applyTextBlock(tb *TextBlock) error {
 	var err error
 

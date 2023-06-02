@@ -215,49 +215,49 @@ func Test_That_ParseOutputSpec_Parses_Only_Height_Dimension(t *testing.T) {
 
 func Test_That_ParseAnchorSpec_Sets_GravityPull_For_Horizontal_Negative_Value(t *testing.T) {
 	raw := "-1,9"
-	spec := parseAnchorSpec(raw)
+	spec := ParseAnchorSpec(raw)
 
 	assert.Equal(t, GravityPull, spec.Horizontal)
 }
 
 func Test_That_ParseAnchorSpec_Sets_GravityCenter_For_Horizontal_Zero_Value(t *testing.T) {
 	raw := "0,9"
-	spec := parseAnchorSpec(raw)
+	spec := ParseAnchorSpec(raw)
 
 	assert.Equal(t, GravityCenter, spec.Horizontal)
 }
 
 func Test_That_ParseAnchorSpec_Sets_GravityPush_For_Horizontal_Positive_Value(t *testing.T) {
 	raw := "1,9"
-	spec := parseAnchorSpec(raw)
+	spec := ParseAnchorSpec(raw)
 
 	assert.Equal(t, GravityPush, spec.Horizontal)
 }
 
 func Test_That_ParseAnchorSpec_Sets_GravityPull_For_Vertical_Negative_Value(t *testing.T) {
 	raw := "9,-1"
-	spec := parseAnchorSpec(raw)
+	spec := ParseAnchorSpec(raw)
 
 	assert.Equal(t, GravityPull, spec.Vertical)
 }
 
 func Test_That_ParseAnchorSpec_Sets_GravityCenter_For_Vertical_Zero_Value(t *testing.T) {
 	raw := "9,0"
-	spec := parseAnchorSpec(raw)
+	spec := ParseAnchorSpec(raw)
 
 	assert.Equal(t, GravityCenter, spec.Vertical)
 }
 
 func Test_That_ParseAnchorSpec_Sets_GravityPush_For_Vertical_Positive_Value(t *testing.T) {
 	raw := "9,1"
-	spec := parseAnchorSpec(raw)
+	spec := ParseAnchorSpec(raw)
 
 	assert.Equal(t, GravityPush, spec.Vertical)
 }
 
 func Test_That_ParseAnchorSpec_Defaults_To_CenterGravity_Values_For_Separator_Error(t *testing.T) {
 	raw := "1"
-	spec := parseAnchorSpec(raw)
+	spec := ParseAnchorSpec(raw)
 
 	assert.Equal(t, GravityCenter, spec.Horizontal)
 	assert.Equal(t, GravityCenter, spec.Vertical)
@@ -265,14 +265,14 @@ func Test_That_ParseAnchorSpec_Defaults_To_CenterGravity_Values_For_Separator_Er
 
 func Test_That_ParseAnchorSpec_Defaults_To_CenterGravity_Horizontal_Value(t *testing.T) {
 	raw := "k,1"
-	spec := parseAnchorSpec(raw)
+	spec := ParseAnchorSpec(raw)
 
 	assert.Equal(t, GravityCenter, spec.Horizontal)
 }
 
 func Test_That_ParseAnchorSpec_Defaults_To_CenterGravity_Vertical_Value(t *testing.T) {
 	raw := "1,k"
-	spec := parseAnchorSpec(raw)
+	spec := ParseAnchorSpec(raw)
 
 	assert.Equal(t, GravityCenter, spec.Vertical)
 }

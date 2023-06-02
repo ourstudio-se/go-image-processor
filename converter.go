@@ -37,6 +37,12 @@ func (c *ImageConverter) Apply(blob []byte, spec *OutputSpec) ([]byte, error) {
 
 	h.applyBackground(spec.Background, spec.Compression)
 
+	if len(spec.Overlays) > 0 {
+		for _, overlay := range spec.Overlays {
+			h.addLayer(overlay)
+		}
+	}
+
 	if spec.Text != nil {
 		if err = h.applyTextBlock(spec.Text); err != nil {
 			return nil, err

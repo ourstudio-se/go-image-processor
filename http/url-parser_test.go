@@ -13,28 +13,28 @@ import (
 func Test_That_GetImageSource_Returns_QueryString_Param_URL(t *testing.T) {
 	expected := "https://www.test.com/path"
 	u, _ := url.Parse(fmt.Sprintf("https://www.test.com/path?url=%s", url.QueryEscape(expected)))
-	actual, _ := getImageSource(u.Query())
+	actual, _ := getImageSource(u.Query(), DefaultParameterMap().SourceURL)
 
 	assert.Equal(t, expected, actual.String())
 }
 
 func Test_That_GetImageSource_Returns_Error_On_Missing_QueryString_Param_URL(t *testing.T) {
 	u, _ := url.Parse("https://www.test.com/path?")
-	_, err := getImageSource(u.Query())
+	_, err := getImageSource(u.Query(), DefaultParameterMap().SourceURL)
 
 	assert.Error(t, err)
 }
 
 func Test_That_GetImageSource_Returns_Error_On_Non_Absolute_QueryString_Param_URL(t *testing.T) {
 	u, _ := url.Parse(fmt.Sprintf("https://www.test.com/path?url=%s", url.QueryEscape("/not/absolute")))
-	_, err := getImageSource(u.Query())
+	_, err := getImageSource(u.Query(), DefaultParameterMap().SourceURL)
 
 	assert.Error(t, err)
 }
 
 func Test_That_GetImageSource_Returns_Error_On_Non_HTTP_HTTPS_Scheme_For_QueryString_Param_URL(t *testing.T) {
 	u, _ := url.Parse(fmt.Sprintf("https://www.test.com/path?url=%s", url.QueryEscape("ftps://domain")))
-	_, err := getImageSource(u.Query())
+	_, err := getImageSource(u.Query(), DefaultParameterMap().SourceURL)
 
 	assert.Error(t, err)
 }
@@ -46,7 +46,7 @@ func Test_That_GetFormatSpec_Returns_OutputSpec_Matching_QueryString_Param_Spec(
 	ay := 1
 	spec := fmt.Sprintf("%dx%d@%d,%d", w, h, ax, ay)
 	u, _ := url.Parse(fmt.Sprintf("https://www.test.com/path?spec=%s", spec))
-	r, _ := getFormatSpec(u.Query())
+	r, _ := getFormatSpec(u.Query(), DefaultParameterMap())
 
 	assert.Equal(t, w, int(r.Width))
 	assert.Equal(t, h, int(r.Height))
@@ -57,7 +57,7 @@ func Test_That_GetFormatSpec_Returns_OutputSpec_Matching_QueryString_Param_Spec(
 func Test_That_GetFormatSpec_Returns_OutputSpec_Width_Matching_QueryString_Param_Width(t *testing.T) {
 	w := 100
 	u, _ := url.Parse(fmt.Sprintf("https://www.test.com/path?width=%d", w))
-	r, _ := getFormatSpec(u.Query())
+	r, _ := getFormatSpec(u.Query(), DefaultParameterMap())
 
 	assert.Equal(t, w, int(r.Width))
 }
@@ -65,14 +65,14 @@ func Test_That_GetFormatSpec_Returns_OutputSpec_Width_Matching_QueryString_Param
 func Test_That_GetFormatSpec_Returns_OutputSpec_Height_Matching_QueryString_Param_Height(t *testing.T) {
 	h := 200
 	u, _ := url.Parse(fmt.Sprintf("https://www.test.com/path?height=%d", h))
-	r, _ := getFormatSpec(u.Query())
+	r, _ := getFormatSpec(u.Query(), DefaultParameterMap())
 
 	assert.Equal(t, h, int(r.Height))
 }
 
 func Test_That_GetFormatSpec_Returns_Error_When_QueryString_Missing_Dimensions(t *testing.T) {
 	u, _ := url.Parse("https://www.test.com/path")
-	_, err := getFormatSpec(u.Query())
+	_, err := getFormatSpec(u.Query(), DefaultParameterMap())
 
 	assert.Error(t, err)
 }
@@ -81,7 +81,7 @@ func Test_That_GetFormatSpec_Returns_OutputSpec_Anchors_Matching_QueryString_Par
 	ax := -1
 	ay := 1
 	u, _ := url.Parse(fmt.Sprintf("https://www.test.com/path?width=100&anchorx=%d&anchory=%d", ax, ay))
-	r, _ := getFormatSpec(u.Query())
+	r, _ := getFormatSpec(u.Query(), DefaultParameterMap())
 
 	assert.Equal(t, improc.GravityPull, r.Anchor.Horizontal)
 	assert.Equal(t, improc.GravityPush, r.Anchor.Vertical)
@@ -89,14 +89,14 @@ func Test_That_GetFormatSpec_Returns_OutputSpec_Anchors_Matching_QueryString_Par
 
 func Test_That_GetFormatSpec_Returns_Error_On_Missing_QueryString_Param_AnchorX(t *testing.T) {
 	u, _ := url.Parse("https://www.test.com/path?width=100&anchory=-1")
-	_, err := getFormatSpec(u.Query())
+	_, err := getFormatSpec(u.Query(), DefaultParameterMap())
 
 	assert.Error(t, err)
 }
 
 func Test_That_GetFormatSpec_Returns_Error_On_Missing_QueryString_Param_AnchorY(t *testing.T) {
 	u, _ := url.Parse("https://www.test.com/path?width=100&anchorx=-1")
-	_, err := getFormatSpec(u.Query())
+	_, err := getFormatSpec(u.Query(), DefaultParameterMap())
 
 	assert.Error(t, err)
 }
@@ -118,8 +118,8 @@ func Test_GetCompression(t *testing.T) {
 
 	for _, tt := range compressions {
 		t.Run(tt.in, func(t *testing.T) {
-			u, _ := url.Parse(fmt.Sprintf("https://www.test.com/path?out=%s", tt.in))
-			r := getCompression(u.Query())
+			u, _ := url.Parse(fmt.Sprintf("https://www.test.com/path?output=%s", tt.in))
+			r := getCompression(u.Query(), DefaultParameterMap().Compression)
 
 			assert.Equal(t, tt.out, r)
 		})
@@ -142,7 +142,7 @@ func Test_GetBackgroundColor(t *testing.T) {
 	for _, tt := range colors {
 		t.Run(tt.in, func(t *testing.T) {
 			u, _ := url.Parse(fmt.Sprintf("https://www.test.com/path?background=%s", tt.in))
-			r := getBackgroundColor(u.Query(), tt.compression)
+			r := getBackgroundColor(u.Query(), tt.compression, DefaultParameterMap().Background)
 
 			assert.Equal(t, tt.out, r)
 		})

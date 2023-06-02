@@ -100,6 +100,8 @@ type TextBlock struct {
 	Anchor     *Anchor
 }
 
+type OverlaySource []byte
+
 // OutputSpec is the specification used
 // when resizing and/or cropping an image
 type OutputSpec struct {
@@ -108,6 +110,7 @@ type OutputSpec struct {
 	Crop        bool
 	Anchor      *Anchor
 	Background  Color
+	Overlays    []OverlaySource
 	Quality     uint
 	Compression Compression
 	Text        *TextBlock
